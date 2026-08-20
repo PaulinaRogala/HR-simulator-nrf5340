@@ -1,0 +1,8 @@
+/ {
+
+};
+
+
+&pwm_led0 {
+    status = "okay";
+};

@@ -1,75 +1,53 @@
-/*
- * Copyright (c) 2016 Intel Corporation
- * Copyright (c) 2020 Nordic Semiconductor ASA
- *
- * SPDX-License-Identifier: Apache-2.0
- */
-
-/**
- * @file Sample app to demonstrate PWM-based LED fade
- */
 
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/pwm.h>
+#include <math.h>
 
-#define PWM_LED_ALIAS(i) DT_ALIAS(_CONCAT(pwm_led, i))
-#define PWM_LED_IS_OKAY(i) DT_NODE_HAS_STATUS_OKAY(DT_PARENT(PWM_LED_ALIAS(i)))
-#define PWM_LED(i, _) IF_ENABLED(PWM_LED_IS_OKAY(i), (PWM_DT_SPEC_GET(PWM_LED_ALIAS(i)),))
+#define PWM_NODE DT_NODELABEL(pwm_led0)
+static const struct pwm_dt_spec pwm_led =PWM_DT_SPEC_GET(PWM_NODE);
 
-#define MAX_LEDS 10
-static const struct pwm_dt_spec pwm_leds[] = {LISTIFY(MAX_LEDS, PWM_LED, ())};
-
-#define NUM_STEPS	50U
-#define SLEEP_MSEC	25U
+//#define HR_FREQ_HZ 0.5f //0,5 Hz->30 BPM
+//#define HR_FREQ_HZ 1.0f //1 Hz->60 BPM
+//#define HR_FREQ_HZ 1.5f //1,5 Hz->90 BPM
+//#define HR_FREQ_HZ 2.0f //2 Hz->120 BPM
+//#define HR_FREQ_HZ 2.5f //2,5 Hz->150 BPM
+//#define HR_FREQ_HZ 3.0f //3 Hz->180 BPM
+#define HR_FREQ_HZ 3.5f //3,5 Hz->210 BPM
+#define PWM_PERIOD_NS 10000000 //=10ms=0.01s -> f=1/0.01=100Hz
+#define M_PI 3.14159265358979323846f
 
 int main(void)
 {
-	uint32_t pulse_widths[ARRAY_SIZE(pwm_leds)];
-	uint32_t steps[ARRAY_SIZE(pwm_leds)];
-	uint8_t dirs[ARRAY_SIZE(pwm_leds)];
 	int ret;
+	float phase;
+	uint32_t time_ms;
+	uint32_t duty_cycle_ns;
 
-	printk("PWM-based LED fade. Found %d LEDs\n", ARRAY_SIZE(pwm_leds));
-
-	for (size_t i = 0; i < ARRAY_SIZE(pwm_leds); i++) {
-		pulse_widths[i] = 0;
-		steps[i] = pwm_leds[i].period / NUM_STEPS;
-		dirs[i] = 1U;
-		if (!pwm_is_ready_dt(&pwm_leds[i])) {
-			printk("Error: PWM device %s is not ready\n", pwm_leds[i].dev->name);
-			return 0;
-		}
+	if(!pwm_is_ready_dt(&pwm_led)){
+		printk("PWM not ready!\n");
+		return 0;
 	}
 
-	while (1) {
-		for (size_t i = 0; i < ARRAY_SIZE(pwm_leds); i++) {
-			ret = pwm_set_pulse_dt(&pwm_leds[i], pulse_widths[i]);
-			if (ret) {
-				printk("Error %d: failed to set pulse width for LED %d\n", ret, i);
-			}
-			printk("LED %d: Using pulse width %d%%\n", i,
-			       100 * pulse_widths[i] / pwm_leds[i].period);
+	ret=pwm_set_dt(&pwm_led,PWM_PERIOD_NS,0);
+	if(ret<0){
+		printk("PWM init failed: %d\n",ret);
+		return 0;
+	}
+	printk("HR simulator-%d Hz (%d BPM)\n",(int)HR_FREQ_HZ,(int)HR_FREQ_HZ*60);
 
-			if (dirs[i] == 1) {
-				if (pulse_widths[i] + steps[i] >= pwm_leds[i].period) {
-					pulse_widths[i] = pwm_leds[i].period;
-					dirs[i] = 0U;
-				} else {
-					pulse_widths[i] += steps[i];
-				}
-			} else {
-				if (pulse_widths[i] <= steps[i]) {
-					pulse_widths[i] = 0;
-					dirs[i] = 1U;
-				} else {
-					pulse_widths[i] -= steps[i];
-				}
-			}
+	while (1) {
+		time_ms=k_uptime_get_32();
+		phase=2.0f*M_PI*HR_FREQ_HZ*(time_ms/1000.0f);
+		float duty=(sinf(phase)+1.0f)/2.0f; //[0,1]
+		duty_cycle_ns=PWM_PERIOD_NS*duty; 
+		ret=pwm_set_pulse_dt(&pwm_led, duty_cycle_ns);
+		if(ret<0){
+			printk("PWM set failed: %d\n",ret);
 		}
 
-		k_sleep(K_MSEC(SLEEP_MSEC));
+		k_sleep(K_MSEC(1));
 	}
 	return 0;
 }
