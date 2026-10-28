@@ -9,12 +9,12 @@
 static const struct pwm_dt_spec pwm_led =PWM_DT_SPEC_GET(PWM_NODE);
 
 //#define HR_FREQ_HZ 0.5f //0,5 Hz->30 BPM
-//#define HR_FREQ_HZ 1.0f //1 Hz->60 BPM
+#define HR_FREQ_HZ 1.0f //1 Hz->60 BPM
 //#define HR_FREQ_HZ 1.5f //1,5 Hz->90 BPM
 //#define HR_FREQ_HZ 2.0f //2 Hz->120 BPM
 //#define HR_FREQ_HZ 2.5f //2,5 Hz->150 BPM
 //#define HR_FREQ_HZ 3.0f //3 Hz->180 BPM
-#define HR_FREQ_HZ 3.5f //3,5 Hz->210 BPM
+//define HR_FREQ_HZ 3.5f //3,5 Hz->210 BPM
 #define PWM_PERIOD_NS 10000000 //=10ms=0.01s -> f=1/0.01=100Hz
 #define M_PI 3.14159265358979323846f
 
